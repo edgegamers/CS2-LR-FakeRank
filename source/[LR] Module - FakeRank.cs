@@ -19,7 +19,6 @@ public class LevelsRanksModuleFakeRank : BasePlugin
     public override string ModuleVersion => "1.0";
     public override string ModuleAuthor => "ABKAM designed by RoadSide Romeo & Wend4r";
 
-    private Dictionary<int, (int competitiveRanking, int competitiveRankType)>? _ranksConfig;
     private readonly Dictionary<string, (int competitiveRanking, int competitiveRankType)> _playerRanks = new();
     private ILevelsRanksApi? _api;
     private readonly PluginCapability<ILevelsRanksApi> _apiCapability = new("levels_ranks");
@@ -36,7 +35,6 @@ public class LevelsRanksModuleFakeRank : BasePlugin
         }
 
         CreateRanksConfig();
-        _ranksConfig = LoadRanksConfig();
 
         RegisterListener<Listeners.OnTick>(OnTick);
         AddTimer(2.0f, () =>
@@ -87,51 +85,6 @@ public class LevelsRanksModuleFakeRank : BasePlugin
         }
     }
 
-    private Dictionary<int, (int competitiveRanking, int competitiveRankType)> LoadRanksConfig()
-    {
-        var configDirectory = Path.Combine(Application.RootDirectory, "configs/plugins/LevelsRanks");
-        var filePath = Path.Combine(configDirectory, "settings_fakerank.json");
-
-        var json = File.ReadAllText(filePath);
-        var config = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(json);
-
-        var ranks = new Dictionary<int, (int competitiveRanking, int competitiveRankType)>();
-
-        if (config != null && config.TryGetValue("LR_FakeRank", out var fakeRankSection) &&
-            fakeRankSection.TryGetValue("FakeRank", out var fakeRanksObject))
-            if (fakeRanksObject is JsonElement fakeRanksElement)
-            {
-                int rankType;
-                if (fakeRankSection.TryGetValue("Type", out var typeValue) && typeValue is JsonElement typeElement &&
-                    typeElement.GetString() is string typeString && int.TryParse(typeString, out var type))
-                    switch (type)
-                    {
-                        case 1:
-                            rankType = 12;
-                            break;
-                        case 2:
-                            rankType = 7;
-                            break;
-                        case 3:
-                            rankType = 11;
-                            break;
-                        default:
-                            rankType = 12;
-                            break;
-                    }
-                else
-                    rankType = 12;
-
-                foreach (var rank in fakeRanksElement.EnumerateObject())
-                    if (int.TryParse(rank.Name, out var level) &&
-                        rank.Value.GetString() is string competitiveRankingString &&
-                        int.TryParse(competitiveRankingString, out var competitiveRanking))
-                        ranks[level] = (competitiveRanking, rankType);
-            }
-
-        return ranks;
-    }
-
     private async Task FetchPlayerRanks()
     {
         var players = Utilities.GetPlayers().Where(player => !player.IsBot && player.TeamNum != (int)CsTeam.Spectator);
@@ -166,11 +119,8 @@ public class LevelsRanksModuleFakeRank : BasePlugin
         if (currentRanks.TryGetValue(steamId, out var currentElo))
         {
             if (!_lastKnownLevels.TryGetValue(steamId, out var lastLevel) || currentElo != lastLevel)
-                if (_ranksConfig != null && _ranksConfig.TryGetValue(currentElo, out var rankInfo))
-                {
-                    _playerRanks[steamId] = rankInfo;
-                    _lastKnownLevels[steamId] = currentElo;
-                }
+                _playerRanks[steamId] = (currentElo, 11);
+            _lastKnownLevels[steamId] = currentElo;
         }
         else
         {
@@ -195,21 +145,6 @@ public class LevelsRanksModuleFakeRank : BasePlugin
                     player.CompetitiveRanking = rankInfo.competitiveRanking;
                     player.CompetitiveWins = 777;
                 }
-        }
-    }
-    [ConsoleCommand("css_lvl_reload", "Reloads the configuration files")]
-    public void ReloadConfigsCommand(CCSPlayerController? player, CommandInfo command)
-    {
-        if (player == null)
-        {
-            try
-            {
-                LoadRanksConfig();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogInformation($"Error reloading configuration: {ex.Message}");
-            }
         }
     }
 }
