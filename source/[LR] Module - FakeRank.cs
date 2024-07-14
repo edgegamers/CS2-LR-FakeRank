@@ -161,15 +161,15 @@ public class LevelsRanksModuleFakeRank : BasePlugin
     {
         var steamId64 = player.SteamID;
         var steamId = _api!.ConvertToSteamId(steamId64);
-        var currentRanks = await _api.GetCurrentRanksAsync();
+        var currentRanks = await _api.GetCurrentELOAsync();
 
-        if (currentRanks.TryGetValue(steamId, out var currentLevelId))
+        if (currentRanks.TryGetValue(steamId, out var currentElo))
         {
-            if (!_lastKnownLevels.TryGetValue(steamId, out var lastLevel) || currentLevelId != lastLevel)
-                if (_ranksConfig != null && _ranksConfig.TryGetValue(currentLevelId, out var rankInfo))
+            if (!_lastKnownLevels.TryGetValue(steamId, out var lastLevel) || currentElo != lastLevel)
+                if (_ranksConfig != null && _ranksConfig.TryGetValue(currentElo, out var rankInfo))
                 {
                     _playerRanks[steamId] = rankInfo;
-                    _lastKnownLevels[steamId] = currentLevelId;
+                    _lastKnownLevels[steamId] = currentElo;
                 }
         }
         else
